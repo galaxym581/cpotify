@@ -1,0 +1,238 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json" />
+
+<!-- Theme Color -->
+<meta name="theme-color" content="#000000">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cpotify — Music App</title>
+  <link rel="icon" type="image/png" href="https://imgpx.com/FjQyBY4SyLWH.png"/>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: #fff;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      background-color: #1db954;
+    }
+    header img {
+      height: 36px;
+      margin-right: 12px;
+    }
+    header h1 {
+      font-size: 1.4rem;
+      margin: 0;
+    }
+    #searchInput {
+      width: 90%;
+      max-width: 500px;
+      margin: 20px auto;
+      display: block;
+      padding: 12px;
+      border-radius: 25px;
+      border: none;
+      font-size: 1rem;
+    }
+    #searchResults {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .songCard {
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+    .songCard img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .songCard h4 {
+      font-size: 0.95rem;
+      margin: 10px 0;
+    }
+    .songCard button {
+      background-color: #1db954;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+    #player {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #181818;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 999;
+    }
+    #nowPlaying {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .controls button,
+    .controls input[type='range'] {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .controls input[type='range'] {
+      width: 80px;
+    }
+    #ytPlayer {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="https://imgpx.com/BSJX2LNyoSXT.png" alt="Logo" />
+    <h1>Cpotify — Music App</h1>
+  </header>  <input type="text" id="searchInput" placeholder="Search music..." />
+  <div id="searchResults"></div>  <div id="player">
+    <div id="nowPlaying">🎵 Select a song</div>
+    <div class="controls">
+      <button onclick="togglePlay()">⏯️</button>
+      <button onclick="toggleShuffle()">🔀</button>
+      <button onclick="toggleRepeat()">🔁</button>
+      <input type="range" id="volumeSlider" min="0" max="100" value="100" />
+    </div>
+    <div id="ytPlayer"></div>
+  </div>  <script>
+    const apiKey = "AIzaSyCSqEFAEnM3dWosLgBta_HZPvxknDpxsLo";
+    const searchInput = document.getElementById("searchInput");
+    const searchResults = document.getElementById("searchResults");
+    const nowPlaying = document.getElementById("nowPlaying");
+    const volumeSlider = document.getElementById("volumeSlider");
+
+    let player;
+    let currentVideoId = "";
+    let isShuffling = false;
+    let isRepeating = false;
+    let playlist = [];
+    let currentIndex = 0;
+
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.trim();
+      if (query.length > 2) searchSongs(query);
+    });
+
+    function searchSongs(query) {
+      searchResults.innerHTML = "Searching...";
+      fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(query)}&key=${apiKey}`)
+        .then(res => res.json())
+        .then(data => {
+          playlist = data.items.map(item => ({
+            videoId: item.id.videoId,
+            title: item.snippet.title
+          }));
+
+          searchResults.innerHTML = "";
+          data.items.forEach((item, index) => {
+            const card = document.createElement("div");
+            card.className = "songCard";
+            card.innerHTML = `
+              <img src="${item.snippet.thumbnails.medium.url}" alt="${item.snippet.title}" />
+              <h4>${item.snippet.title}</h4>
+              <button onclick="playSong(${index})">Play</button>
+            `;
+            searchResults.appendChild(card);
+          });
+        });
+    }
+
+    function playSong(index) {
+      currentIndex = index;
+      const song = playlist[index];
+      nowPlaying.textContent = `🎶 Now Playing: ${song.title}`;
+      player.loadVideoById(song.videoId);
+    }
+
+    function togglePlay() {
+      const state = player.getPlayerState();
+      if (state === YT.PlayerState.PLAYING) player.pauseVideo();
+      else player.playVideo();
+    }
+
+    function toggleShuffle() {
+      isShuffling = !isShuffling;
+      alert("Shuffle: " + (isShuffling ? "On" : "Off"));
+    }
+
+    function toggleRepeat() {
+      isRepeating = !isRepeating;
+      alert("Repeat: " + (isRepeating ? "On" : "Off"));
+    }
+
+    volumeSlider.addEventListener("input", () => {
+      player.setVolume(volumeSlider.value);
+    });
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player("ytPlayer", {
+        height: "0",
+        width: "0",
+        videoId: "",
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0
+        },
+        events: {
+          onStateChange: onPlayerStateChange
+        }
+      });
+    }
+
+    function onPlayerStateChange(event) {
+      if (event.data === YT.PlayerState.ENDED) {
+        if (isRepeating) {
+          player.seekTo(0);
+          player.playVideo();
+        } else if (isShuffling) {
+          playSong(Math.floor(Math.random() * playlist.length));
+        } else if (currentIndex + 1 < playlist.length) {
+          playSong(currentIndex + 1);
+        }
+      }
+    }
+
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.body.appendChild(tag);
+  </script>
+<!-- Your main HTML content -->
+
+<!-- Register service worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(() => console.log('✅ Service Worker Registered'))
+      .catch((error) => console.log('❌ SW Registration Failed:', error));
+  }
+</script>
+</body>
+</html>
